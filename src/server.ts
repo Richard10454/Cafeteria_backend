@@ -52,7 +52,6 @@ const corsOptions: CorsOptions = {
 };
 
 server.use(cors(corsOptions));
-server.options("*", cors(corsOptions));
 
 server.use(express.json());
 server.use(morgan("dev"));
