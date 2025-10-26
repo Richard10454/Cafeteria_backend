@@ -13,7 +13,7 @@ console.log("BOOT:");
 async function connectDB() {
   try {
     await db.authenticate();
-    db.sync();
+    await db.sync();
     // console.log(colors.magenta("Base de datos conectada"));
   } catch (error) {
     console.log(colors.bgRed.white("Hubo un error al conectar a la BD"));
@@ -42,10 +42,11 @@ const corsOptions: CorsOptions = {
       allowedOrigins.includes(origin) ||
       allowedRegex.some((re) => re.test(origin));
 
-    if (ok) return callback(null, true);
-    return callback(new Error("Not allowed by CORS"));
+    return ok
+      ? callback(null, true)
+      : callback(new Error("Not allowed by CORS"));
   },
-  credentials: true, // si usas cookies/autorización
+  credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
 };
@@ -54,8 +55,6 @@ server.use(cors(corsOptions));
 server.options("*", cors(corsOptions));
 
 server.use(express.json());
-
-// Logs
 server.use(morgan("dev"));
 
 // Rutas API
@@ -66,5 +65,25 @@ server.get("/api", (_req, res) => {
 
 // Docs
 server.use("/docs", swaggerUI.serve, swaggerUI.setup(swaggerSpec));
+
+server.use((req, res) => {
+  res.status(404).json({ error: "Ruta no encontrada", path: req.originalUrl });
+});
+
+server.use(
+  (
+    err: any,
+    _req: express.Request,
+    res: express.Response,
+    _next: express.NextFunction
+  ) => {
+    console.error(" Error:", err?.message || err);
+    const status =
+      err?.message === "Not allowed by CORS" ? 403 : err?.status || 500;
+    res.status(status).json({
+      error: err?.message || "Error interno del servidor",
+    });
+  }
+);
 
 export default server;
