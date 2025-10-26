@@ -14,44 +14,57 @@ async function connectDB() {
   try {
     await db.authenticate();
     db.sync();
-    //console.log(colors.magenta("Base de datos conectada aaaa"));
+    // console.log(colors.magenta("Base de datos conectada"));
   } catch (error) {
-    //console.log(error);
     console.log(colors.bgRed.white("Hubo un error al conectar a la BD"));
   }
 }
-
 connectDB();
 
-// Instacia de express
 const server = express();
 
-// Permitir conexiones
+server.set("trust proxy", 1);
+
+// ---------- CORS ----------
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+].filter(Boolean) as string[];
+
+const allowedRegex = [/\.onrender\.com$/];
 
 const corsOptions: CorsOptions = {
-  origin: function (origin, callback) {
-    if (origin === process.env.FRONTEND_URL) {
-      callback(null, true);
-    } else {
-      callback(new Error("Error de cors"));
-    }
+  origin(origin, callback) {
+    if (!origin) return callback(null, true);
+
+    const ok =
+      allowedOrigins.includes(origin) ||
+      allowedRegex.some((re) => re.test(origin));
+
+    if (ok) return callback(null, true);
+    return callback(new Error("Not allowed by CORS"));
   },
+  credentials: true, // si usas cookies/autorización
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
 };
 
 server.use(cors(corsOptions));
+server.options("*", cors(corsOptions));
 
-// Leer datos de formularios
 server.use(express.json());
 
+// Logs
 server.use(morgan("dev"));
 
+// Rutas API
 server.use("/api", Cafeteria);
-
-server.get("/api", (req, res) => {
+server.get("/api", (_req, res) => {
   res.json("Desde API");
 });
 
-//Docs
+// Docs
 server.use("/docs", swaggerUI.serve, swaggerUI.setup(swaggerSpec));
 
 export default server;
